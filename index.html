@@ -81,6 +81,13 @@
 
   #insult .fixed { color: rgba(255,255,255,.55); font-weight: normal; }
 
+  #placeholder {
+    font-size: clamp(1.1rem, 5.5vw, 1.6rem);
+    line-height: 1.4;
+    opacity: .7;
+    padding: 10px;
+  }
+
   .slot {
     display: inline-block;
     color: var(--word);
@@ -168,7 +175,8 @@
   </header>
 
   <div id="stage">
-    <div id="insult">
+    <div id="placeholder">Tap the button to find out what you really are&hellip;</div>
+    <div id="insult" hidden>
       <span class="fixed">the</span>
       <span class="slot" id="s0">?</span>
       <span class="slot" id="s1">?</span>
@@ -210,6 +218,8 @@ fetch("words.json")
 
 const slots = [0,1,2,3].map(i => document.getElementById("s"+i));
 const stage = document.getElementById("stage");
+const placeholder = document.getElementById("placeholder");
+const insultEl = document.getElementById("insult");
 const goBtn = document.getElementById("go");
 const shareBtn = document.getElementById("share");
 const muteBtn = document.getElementById("mute");
@@ -319,6 +329,8 @@ function generate() {
   spinning = true;
   goBtn.disabled = true;
   stage.classList.remove("done");
+  placeholder.hidden = true;
+  insultEl.hidden = false;
 
   const finals = WORDS.map(pick);
   const lockTimes = [700, 1150, 1600, 2050]; // ms, staggered lock-in
@@ -361,7 +373,7 @@ function finish(finals) {
 /* ---------- SHARE ---------- */
 async function share() {
   if (!currentInsult) { showToast("Generate an insult first!"); return; }
-  const text = `You are ${currentInsult}! 💨 — sent from the Insult-o-matic 3000`;
+  const text = `You remind me of ${currentInsult}! 💨\n${location.href}`;
   if (navigator.share) {
     try { await navigator.share({ text }); } catch (e) { /* user cancelled */ }
   } else if (navigator.clipboard) {
