@@ -167,11 +167,50 @@
   @keyframes fall {
     to { transform: translateY(110vh) rotate(720deg); opacity: .3; }
   }
+
+  #a2hs {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    left: 12px; right: 12px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(20,8,36,.95);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 18px;
+    padding: 12px 40px 12px 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    text-align: left;
+    transform: translateY(-140%);
+    transition: transform .35s ease;
+  }
+  #a2hs.show { transform: translateY(0); }
+  #a2hs .icon { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; }
+  #a2hs .text { font-size: .8rem; line-height: 1.35; }
+  #a2hs .share-glyph { vertical-align: -3px; color: var(--word); }
+  #a2hs .close {
+    position: absolute; top: 4px; right: 6px;
+    background: none; border: none; color: rgba(255,255,255,.6);
+    font-size: 1.4rem; line-height: 1; padding: 6px 10px; cursor: pointer;
+  }
 </style>
 </head>
 <body>
   <div class="blob b1"></div>
   <div class="blob b2"></div>
+
+  <div id="a2hs" hidden>
+    <button id="a2hsClose" class="close" aria-label="Dismiss">&times;</button>
+    <img src="icon.png" alt="" class="icon">
+    <div class="text">
+      Install this app! Tap
+      <svg class="share-glyph" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 16V4"/><path d="M8 8l4-4 4 4"/><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>
+      </svg>
+      then <strong>Add to Home Screen</strong>
+    </div>
+  </div>
 
   <header>
     <h1>Insult-o-matic 3000</h1>
@@ -395,6 +434,34 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
 }
+
+/* ---------- ADD TO HOME SCREEN PROMPT (iOS Safari only — no beforeinstallprompt on iOS) ---------- */
+(function a2hsInit() {
+  const ua = navigator.userAgent;
+  const isIOS = /iP(hone|od|ad)/.test(ua) && !window.MSStream;
+  const isSafari = isIOS && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  const isStandalone = navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+  if (!isSafari || isStandalone) return;
+
+  const DISMISS_KEY = "a2hsDismissedAt";
+  const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) || 0);
+  const daysSinceDismiss = (Date.now() - dismissedAt) / 86400000;
+  if (dismissedAt && daysSinceDismiss < 14) return;
+
+  const banner = document.getElementById("a2hs");
+  const closeBtn = document.getElementById("a2hsClose");
+
+  setTimeout(() => {
+    banner.hidden = false;
+    requestAnimationFrame(() => banner.classList.add("show"));
+  }, 1500);
+
+  closeBtn.addEventListener("click", () => {
+    banner.classList.remove("show");
+    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    setTimeout(() => { banner.hidden = true; }, 350);
+  });
+})();
 
 /* ---------- WIRING ---------- */
 goBtn.addEventListener("click", generate);
