@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a0a2e">
+<title>Insult-o-matic 3000</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg1: #1a0a2e;
+    --bg2: #3d1466;
+    --accent: #ff3e8a;
+    --accent2: #ffd166;
+    --word: #7df9ff;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: "Arial Rounded MT Bold", "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(ellipse at 50% 20%, var(--bg2), var(--bg1) 75%);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    text-align: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* floating background blobs */
+  .blob {
+    position: fixed; border-radius: 50%; filter: blur(60px); opacity: .25;
+    pointer-events: none; z-index: 0;
+  }
+  .blob.b1 { width: 45vmin; height: 45vmin; background: #ff3e8a; top: -10vmin; left: -10vmin; animation: drift 14s ease-in-out infinite alternate; }
+  .blob.b2 { width: 40vmin; height: 40vmin; background: #7df9ff; bottom: -12vmin; right: -8vmin; animation: drift 17s ease-in-out infinite alternate-reverse; }
+  @keyframes drift { to { transform: translate(8vmin, 6vmin) scale(1.15); } }
+
+  header { z-index: 1; }
+
+  h1 {
+    font-size: clamp(1.6rem, 8vw, 2.6rem);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: linear-gradient(90deg, var(--accent2), var(--accent), var(--word));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 3px 0 rgba(0,0,0,.4));
+    animation: wobbleTitle 4s ease-in-out infinite;
+  }
+  @keyframes wobbleTitle {
+    0%,100% { transform: rotate(-1.5deg); }
+    50% { transform: rotate(1.5deg); }
+  }
+  .tagline { font-size: .8rem; opacity: .6; margin-top: 4px; letter-spacing: 2px; text-transform: uppercase; }
+
+  /* insult display */
+  #stage {
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  #insult {
+    font-size: clamp(1.7rem, 9vw, 3.2rem);
+    line-height: 1.25;
+    font-weight: bold;
+    padding: 10px;
+    text-wrap: balance;
+  }
+
+  #insult .fixed { color: rgba(255,255,255,.55); font-weight: normal; }
+
+  .slot {
+    display: inline-block;
+    color: var(--word);
+    text-shadow: 0 0 18px rgba(125,249,255,.45);
+    transition: transform .1s;
+    min-width: 1.5ch;
+  }
+  .slot.spinning { color: var(--accent2); filter: blur(1px); }
+  .slot.locked { animation: lockIn .35s cubic-bezier(.2,2.2,.4,1); }
+  @keyframes lockIn {
+    0% { transform: scale(1.6) rotate(-4deg); }
+    100% { transform: scale(1) rotate(0); }
+  }
+
+  #stage.done #insult { animation: bigReveal .5s cubic-bezier(.2,1.8,.3,1); }
+  @keyframes bigReveal {
+    0% { transform: scale(.9); }
+    55% { transform: scale(1.06) rotate(1deg); }
+    100% { transform: scale(1); }
+  }
+
+  /* controls */
+  .controls { z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+
+  #go {
+    font-family: inherit;
+    font-size: clamp(1.3rem, 6.5vw, 1.9rem);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #2b0518;
+    background: linear-gradient(180deg, #ffd166, #ff3e8a);
+    border: none;
+    border-radius: 60px;
+    padding: 20px 54px;
+    cursor: pointer;
+    box-shadow: 0 8px 0 #a81d55, 0 14px 30px rgba(255,62,138,.45);
+    transition: transform .08s, box-shadow .08s;
+  }
+  #go:active {
+    transform: translateY(6px);
+    box-shadow: 0 2px 0 #a81d55, 0 6px 14px rgba(255,62,138,.45);
+  }
+  #go:disabled { opacity: .6; }
+
+  .minor {
+    display: flex; gap: 12px;
+  }
+  .minor button {
+    font-family: inherit;
+    font-size: .95rem;
+    color: #fff;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 40px;
+    padding: 10px 20px;
+    cursor: pointer;
+  }
+  .minor button:active { background: rgba(255,255,255,.25); }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%) translateY(20px);
+    background: rgba(0,0,0,.75); color: #fff; padding: 10px 22px; border-radius: 30px;
+    font-size: .9rem; opacity: 0; transition: all .3s; pointer-events: none; z-index: 5;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .confetti {
+    position: fixed; top: -20px; z-index: 2; pointer-events: none;
+    font-size: 22px; animation: fall linear forwards;
+  }
+  @keyframes fall {
+    to { transform: translateY(110vh) rotate(720deg); opacity: .3; }
+  }
+</style>
+</head>
+<body>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+
+  <header>
+    <h1>Insult-o-matic 3000</h1>
+    <div class="tagline">Made by Craig &amp; Niall</div>
+  </header>
+
+  <div id="stage">
+    <div id="insult">
+      <span class="fixed">the</span>
+      <span class="slot" id="s0">?</span>
+      <span class="slot" id="s1">?</span>
+      <span class="fixed">of a</span>
+      <span class="slot" id="s2">?</span>
+      <span class="slot" id="s3">?</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="go">Insult me!</button>
+    <div class="minor">
+      <button id="share">📤 Share</button>
+      <button id="mute">🔊 Sound on</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ---------- WORD BANKS ----------
+   Words live in words.json — edit that file to add more!
+   Expected keys: adjectives, bodyParts, descriptors, creatures.
+   The mini list below is only a fallback if words.json can't load
+   (e.g. opening this file directly from disk without a web server). */
+let WORDS = [
+  ["smelly","hairy","soggy","wonky","crusty"],
+  ["feet","armpits","nipples","earwax","kneecaps"],
+  ["scottish","french","space","viking","irish"],
+  ["pelican","goat","badger","traffic warden","gerbil"]
+];
+
+fetch("words.json")
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(d => { WORDS = [d.adjectives, d.bodyParts, d.descriptors, d.creatures]; })
+  .catch(() => showToast("Couldn't load words.json — using mini word list"));
+
+const slots = [0,1,2,3].map(i => document.getElementById("s"+i));
+const stage = document.getElementById("stage");
+const goBtn = document.getElementById("go");
+const shareBtn = document.getElementById("share");
+const muteBtn = document.getElementById("mute");
+const toast = document.getElementById("toast");
+
+let soundOn = true;
+let spinning = false;
+let currentInsult = "";
+
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+/* ---------- SOUND (Web Audio, no files needed) ---------- */
+let actx = null;
+function audio() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === "suspended") actx.resume();
+  return actx;
+}
+
+function tick() {
+  if (!soundOn) return;
+  const ctx = audio(), t = ctx.currentTime;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = "square";
+  o.frequency.value = 700 + Math.random() * 500;
+  g.gain.setValueAtTime(0.06, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+  o.connect(g).connect(ctx.destination);
+  o.start(t); o.stop(t + 0.06);
+}
+
+function raspberry() { // the classic
+  const ctx = audio(), t = ctx.currentTime, dur = 0.55;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = "sawtooth";
+  o.frequency.setValueAtTime(110, t);
+  o.frequency.linearRampToValueAtTime(55, t + dur);
+  // wobble
+  const lfo = ctx.createOscillator(), lg = ctx.createGain();
+  lfo.frequency.value = 30; lg.gain.value = 35;
+  lfo.connect(lg).connect(o.frequency);
+  g.gain.setValueAtTime(0.28, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(ctx.destination);
+  o.start(t); lfo.start(t);
+  o.stop(t + dur); lfo.stop(t + dur);
+}
+
+function sadTrombone() {
+  const ctx = audio();
+  const notes = [233, 220, 208, 196];
+  notes.forEach((f, i) => {
+    const t = ctx.currentTime + i * 0.28;
+    const dur = i === notes.length - 1 ? 0.7 : 0.24;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sawtooth"; o.frequency.value = f;
+    if (i === notes.length - 1) o.frequency.linearRampToValueAtTime(f * 0.93, t + dur);
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.exponentialRampToValueAtTime(0.18, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(ctx.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  });
+}
+
+function fanfare() {
+  const ctx = audio();
+  [523, 659, 784, 1047].forEach((f, i) => {
+    const t = ctx.currentTime + i * 0.12;
+    const dur = i === 3 ? 0.5 : 0.14;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "triangle"; o.frequency.value = f;
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(ctx.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  });
+}
+
+function revealSound() {
+  if (!soundOn) return;
+  const r = Math.random();
+  if (r < 0.5) raspberry();        // farts are funniest, they win half the time
+  else if (r < 0.75) sadTrombone();
+  else fanfare();
+}
+
+/* ---------- CONFETTI ---------- */
+const EMOJI = ["💨","🤢","🐐","🦨","😂","🧦","🍑","🦡","👃","🫏"];
+function confetti() {
+  for (let i = 0; i < 12; i++) {
+    const el = document.createElement("div");
+    el.className = "confetti";
+    el.textContent = pick(EMOJI);
+    el.style.left = Math.random() * 100 + "vw";
+    el.style.animationDuration = (1.2 + Math.random() * 1.5) + "s";
+    el.style.animationDelay = (Math.random() * 0.3) + "s";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+  }
+}
+
+/* ---------- SPIN ---------- */
+function generate() {
+  if (spinning) return;
+  spinning = true;
+  goBtn.disabled = true;
+  stage.classList.remove("done");
+
+  const finals = WORDS.map(pick);
+  const lockTimes = [700, 1150, 1600, 2050]; // ms, staggered lock-in
+  const start = performance.now();
+  let lastFlip = 0;
+
+  slots.forEach(s => { s.classList.add("spinning"); s.classList.remove("locked"); });
+
+  function frame(now) {
+    const el = now - start;
+    if (now - lastFlip > 65) {
+      lastFlip = now;
+      let flipped = false;
+      slots.forEach((s, i) => {
+        if (el < lockTimes[i]) { s.textContent = pick(WORDS[i]); flipped = true; }
+        else if (s.classList.contains("spinning")) {
+          s.textContent = finals[i];
+          s.classList.remove("spinning");
+          s.classList.add("locked");
+          tick();
+        }
+      });
+      if (flipped && Math.random() < 0.7) tick();
+    }
+    if (el < lockTimes[3] + 50) requestAnimationFrame(frame);
+    else finish(finals);
+  }
+  requestAnimationFrame(frame);
+}
+
+function finish(finals) {
+  currentInsult = `the ${finals[0]} ${finals[1]} of a ${finals[2]} ${finals[3]}`;
+  stage.classList.add("done");
+  revealSound();
+  confetti();
+  spinning = false;
+  goBtn.disabled = false;
+}
+
+/* ---------- SHARE ---------- */
+async function share() {
+  if (!currentInsult) { showToast("Generate an insult first!"); return; }
+  const text = `You are ${currentInsult}! 💨 — sent from the Insult-o-matic 3000`;
+  if (navigator.share) {
+    try { await navigator.share({ text }); } catch (e) { /* user cancelled */ }
+  } else if (navigator.clipboard) {
+    await navigator.clipboard.writeText(text);
+    showToast("Copied to clipboard!");
+  } else {
+    showToast(text);
+  }
+}
+
+let toastTimer;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+/* ---------- WIRING ---------- */
+goBtn.addEventListener("click", generate);
+shareBtn.addEventListener("click", share);
+muteBtn.addEventListener("click", () => {
+  soundOn = !soundOn;
+  muteBtn.textContent = soundOn ? "🔊 Sound on" : "🔇 Muted";
+});
+</script>
+</body>
+</html>
