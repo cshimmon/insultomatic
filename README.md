@@ -17,7 +17,7 @@ Every insult follows the time-honoured formula:
 the [adjective] [body part] of a [descriptor] [creature]
 ```
 
-With 60 words per category, that's over **13 million** possible insults.
+With ~90-100 words per category, that's over **80 million** possible insults.
 
 ## Features
 
